@@ -1,14 +1,16 @@
-class textDisplay:
+class TextDisplay:
+    def __init__(self, game_state):
+        self.gameState = game_state
 
-	def __init__(self, gameState):
-		self.gameState = gameState
+    def update_board(self):
+        print("Move #{}. It's {}'s turn.".format(self.gameState.turnCount + 1, self.gameState.turn))
+        grid = self.gameState.grid
+        print(grid.grid_to_string())
 
-	def printBoard(self):
-		grid_ref = self.gameState.grid
-		for i in range(0, grid_ref.dimension):
-			#print(self.board[i])
-			for j in range(0, grid_ref.dimension):
-				if (j < grid_ref.dimension - 1):
-					print("{} | ".format(grid_ref.grid[i, j]), end = "")
-				else:
-					print("{}\n".format(grid_ref.grid[i, j]))
+    @staticmethod
+    def update_draw():
+        print("Draw!")
+
+    def update_winner(self):
+        print(self.gameState.get_turn() + " wins!")
+
