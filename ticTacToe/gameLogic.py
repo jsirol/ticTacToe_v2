@@ -80,7 +80,6 @@ class Grid:
         # diagonal left-right top-down
         v = range(row - end_condition_length + 1, row + end_condition_length)
         h = range(col - end_condition_length + 1, col + end_condition_length)
-        print(h)
         for ii in range(0, len(v)):
             if self.is_valid_coord((v[ii], h[ii])):
                 if self.get_mark((v[ii], h[ii])) == test_mark:
@@ -118,7 +117,7 @@ class Player:
     def get_mark(self):
         return self.mark
 
-    def get_move(self):
+    def get_move(self, game_state):
         raise NotImplementedError("Will be implemented by subclasses!")
 
 
@@ -126,8 +125,7 @@ class HumanPlayer(Player):
     def __init__(self, mark):
         super(HumanPlayer, self).__init__(mark)
 
-    @staticmethod
-    def get_move(game_state):
+    def get_move(self, game_state):
         row = int(input("Give the row {}-{}: ".format(0, game_state.grid.dimension - 1)))
         col = int(input("Give the column {}-{}: ".format(0, game_state.grid.dimension - 1)))
         return row, col
@@ -146,7 +144,7 @@ class GameState:
         self.o = HumanPlayer("O")
         self.end_condition_length = end_condition_length
         self.game_running = True
-        self.turnCount = 0
+        self.turn_count = 0
 
     def get_grid(self):
         return self.grid
@@ -177,6 +175,9 @@ class GameState:
 This contains the main game logic
 """
 
+import textDisplay as td
+import graphicsDisplay as gd
+
 
 class Game:
     def __init__(self, dimension, turn, end_condition_length, display="text"):
@@ -184,12 +185,17 @@ class Game:
         self.gameState = GameState(dimension, turn, end_condition_length)
 
         if display == "text":
-            import textDisplay as td
             self.display = td.TextDisplay(self.gameState)
+        elif display == "gui":
+            self.root, self.display = gd.initialize_graphics(self.gameState)
 
     def run(self):
-        self.display.update_board()
         gs = self.gameState
+        if self.display.name == "text":
+            self.display.update_board()
+        elif self.display.name == "gui":
+            gd.begin_graphics(self.root, self.display)
+
         while self.gameState.game_running:
             next_coord = (-1, -1)
             while not (gs.grid.is_valid_coord(next_coord) and gs.grid.is_free(next_coord)):
@@ -201,21 +207,35 @@ class Game:
             # do the move and update game state
             gs.grid.place_mark(next_coord, gs.turn)
             move_won = gs.grid.test_coordinate_for_win(next_coord, gs.turn, gs.end_condition_length)
-            gs.turnCount += 1
+            gs.turn_count += 1
+
+            if self.display.name == "text":
+                self.display.update_board()
+            elif self.display.name == "gui":
+                self.display.update_board(next_coord)
 
             if move_won:
                 gs.set_game_running(False)
-                self.display.update_board()
-                self.display.update_winner()
-            elif gs.turnCount + 1 == gs.grid.grid.size:
+                if self.display.name == "text":
+                    self.display.update_winner()
+            elif gs.turn_count + 1 == gs.grid.grid.size:
                 gs.set_game_running(False)
-                self.display.update_board()
-                self.display.update_draw()
+                if self.display.name == "text":
+                    self.display.update_draw()
 
             if gs.turn == "O":
                 gs.set_turn("X")
             else:
                 gs.set_turn("O")
 
-            if gs.game_running:
+            if gs.game_running and self.display == "text":
                 self.display.update_board()
+
+
+if __name__ == "__main__":
+    ticTacToe = Game(
+        dimension=3,
+        turn="X",
+        end_condition_length=3,
+        display="gui")
+    ticTacToe.run()
