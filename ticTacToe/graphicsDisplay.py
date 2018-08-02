@@ -1,11 +1,10 @@
 from tkinter import Tk, Label, Button, Canvas, Frame
 import numpy as np
 
-# TODO: start by changing code so that it only draws what the user inputs on the text display...
+
 class GraphicsDisplay:
 
     def __init__(self, root, game_state, canvas_size=(1200, 800)):
-        self.name = "gui"
         self.root = root
         self.gameState = game_state
         self.spacing_x = canvas_size[0] / game_state.grid.dimension
