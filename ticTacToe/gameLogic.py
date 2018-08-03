@@ -3,7 +3,7 @@ Include game logic here.
 """
 
 import numpy as np
-
+import random as rand
 """
 This encodes the play area, aka grid.
 Assume all coordinates are given as (row, col) tuples.
@@ -14,6 +14,8 @@ class Grid:
     def __init__(self, dimension):
         self.dimension = dimension
         self.grid = np.array([" " for x in range(0, dimension**2)]).reshape((dimension, dimension))
+        # use row ordering e.g. 0,1,2 (1st row), 3,4,5 (2nd) etc on 3x3
+        self.possible_moves = set(map(lambda x: (x // dimension, x % dimension), range(0, dimension**2)))
 
     def is_free(self, coord):
         if self.grid[coord[0], coord[1]] not in ["X", "O"]:
@@ -31,9 +33,11 @@ class Grid:
         # free square
         if self.is_free(coord):
             self.grid[coord[0], coord[1]] = mark
+            self.possible_moves.discard(coord)
 
     def clear_grid(self):
         self.grid = np.array([" " for x in range(0, self.dimension**2)]).reshape((self.dimension, self.dimension))
+        self.possible_moves = set(map(lambda x: (x // self.dimension, x % self.dimension), range(0, self.dimension**2)))
 
     def grid_to_string(self):
         s = "    " + " | ".join(map(lambda x: "{:2s}".format(str(x)), range(0, self.dimension))) + "\n"
@@ -118,16 +122,21 @@ This encodes the player behavior.
 
 class Player:
 
-    def __init__(self, mark):
-        self.mark = mark
+    def __init__(self):
+        pass
 
     def get_move(self, game_state):
         raise NotImplementedError("Will be implemented by subclasses!")
 
 
+"""
+This is an abstraction of human player. I.e. prompts for moves.
+"""
+
+
 class HumanPlayer(Player):
-    def __init__(self, mark):
-        super(HumanPlayer, self).__init__(mark)
+    def __init__(self):
+        super(HumanPlayer, self).__init__()
 
     def get_move(self, game_state):
         row = int(input("Give the row {}-{}: ".format(0, game_state.grid.dimension - 1)))
@@ -137,20 +146,41 @@ class HumanPlayer(Player):
         return row, col
 
 
+class RandomBot(Player):
+    def __init__(self):
+        super(RandomBot, self).__init__()
+
+    def get_move(self, game_state):
+        if len(game_state.grid.possible_moves) > 0:
+            move = rand.sample(game_state.grid.possible_moves, 1)[0]
+            game_state.grid.possible_moves.remove(move)
+            return move
+        else:
+            raise IndexError("Bot trying to pick move from empty set of free possible moves.")
+
+
 """
 This encodes the player behavior.
 """
 
 
 class GameState:
-    def __init__(self, dimension, turn, end_condition_length):
+    def __init__(self, dimension, turn, end_condition_length, num_games,
+                 x_player=None, o_player=None, bot_move_draw_delay=0.5):
         self.grid = Grid(dimension)
         self.turn = turn
-        self.x = HumanPlayer("X")
-        self.o = HumanPlayer("O")
+        self.x = HumanPlayer() if x_player is None else x_player
+        self.o = RandomBot() if o_player is None else o_player
         self.end_condition_length = end_condition_length
         self.game_running = True
         self.turn_count = 0
+        self.NUM_GAMES = num_games
+        self.game_counter = 0
+        self.x_won = 0
+        self.o_won = 0
+        self.winner = None
+        # for convenience, if two bots playing vs each other (especially relevant in gui mode)
+        self.bot_move_draw_delay = bot_move_draw_delay
 
     def initialize_game_state(self, turn, x_player, o_player, game_running, turn_count):
         self.turn = turn
@@ -158,6 +188,7 @@ class GameState:
         self.o = o_player
         self.game_running = game_running
         self.turn_count = turn_count
+        self.winner = None
         self.grid.clear_grid()
 
     def play_turn(self, next_coord):
@@ -174,18 +205,23 @@ class GameState:
         move_won, winning_streak = self.grid.test_coordinate_for_win(next_coord, self.turn, self.end_condition_length)
         self.turn_count += 1
 
-        if move_won:
+        if move_won or self.turn_count == self.grid.grid.size:
             self.game_running = False
-        elif self.turn_count + 1 == self.grid.grid.size:
-            self.game_running = False
+            self.game_counter += 1
+            if move_won:
+                self.winner = self.turn
+                if self.winner == "X":
+                    self.x_won += 1
+                else:
+                    self.o_won += 1
 
-        if not move_won:
-            if self.turn == "O":
-                self.turn = "X"
-            else:
-                self.turn = "O"
+        current_turn = self.turn
+        if self.turn == "O":
+            self.turn = "X"
+        else:
+            self.turn = "O"
 
-        return move_won, winning_streak
+        return current_turn, next_coord, move_won, winning_streak
 
 
 """
@@ -194,32 +230,33 @@ This contains the main game logic
 
 
 class Game:
-    def __init__(self, dimension, turn, end_condition_length, display="text"):
-        self.gameState = GameState(dimension, turn, end_condition_length)
-        if display == "text":
-            import textDisplay as td
-            self.display = td.TextDisplay(self.gameState)
+    def __init__(self, dimension, end_condition_length, x_player, o_player,
+                 turn="X", display="text", bot_move_draw_delay=0.5, num_games=1, analytics=False):
+
+        self.gameState = GameState(dimension=dimension,
+                                   turn=turn,
+                                   end_condition_length=end_condition_length,
+                                   num_games=num_games,
+                                   x_player=x_player,
+                                   o_player=o_player,
+                                   bot_move_draw_delay=bot_move_draw_delay)
+        self.display = display
+        self.analytics=analytics
 
     def run(self):
-        gs = self.gameState
-        self.display.update_board()
+        if self.display == "text":
+            import textDisplay as td
+            td.begin_graphics(self.gameState, self.analytics)
 
-        while self.gameState.game_running:
-            self.display.print_turn_info()
-
-            move_won, winning_streak = gs.play_turn()
-
-            self.display.update_board()
-
-            if move_won:
-                self.display.update_winner()
-            elif gs.turn_count + 1 == gs.grid.grid.size:
-                self.display.update_draw()
+        elif self.display == "gui":
+            import graphicsDisplay as gd
+            gd.begin_graphics(self.gameState, self.analytics)
 
 
 if __name__ == "__main__":
     ticTacToe = Game(
         dimension=3,
         turn="X",
-        end_condition_length=3)
+        end_condition_length=3,
+        display="gui")
     ticTacToe.run()
