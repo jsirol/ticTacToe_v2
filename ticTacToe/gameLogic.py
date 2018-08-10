@@ -4,6 +4,7 @@ Include game logic here.
 
 import numpy as np
 import random as rand
+
 """
 This encodes the play area, aka grid.
 Assume all coordinates are given as (row, col) tuples.
@@ -216,10 +217,11 @@ class GameState:
                     self.o_won += 1
 
         current_turn = self.turn
-        if self.turn == "O":
-            self.turn = "X"
-        else:
-            self.turn = "O"
+        if self.game_running:
+            if self.turn == "O":
+                self.turn = "X"
+            else:
+                self.turn = "O"
 
         return current_turn, next_coord, move_won, winning_streak
 
