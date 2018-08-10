@@ -142,8 +142,8 @@ class GraphicsDisplay(Frame):
             # re-initialize game and re-draw board
             gs.initialize_game_state(
                 turn="X",
-                x_player=gs.o,
-                o_player=gs.x,
+                x_player=gs.x,
+                o_player=gs.o,
                 game_running=True,
                 turn_count=0)
             self.__redraw_ui()

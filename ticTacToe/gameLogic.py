@@ -169,8 +169,8 @@ class GameState:
                  x_player=None, o_player=None, bot_move_draw_delay=0.5):
         self.grid = Grid(dimension)
         self.turn = turn
-        self.x = HumanPlayer() if x_player is None else x_player
-        self.o = RandomBot() if o_player is None else o_player
+        self.x = x_player
+        self.o = o_player
         self.end_condition_length = end_condition_length
         self.game_running = True
         self.turn_count = 0
@@ -233,12 +233,15 @@ class Game:
     def __init__(self, dimension, end_condition_length, x_player, o_player,
                  turn="X", display="text", bot_move_draw_delay=0.5, num_games=1, analytics=False):
 
+        x = HumanPlayer() if x_player is None else x_player
+        o = RandomBot() if o_player is None else o_player
+
         self.gameState = GameState(dimension=dimension,
                                    turn=turn,
                                    end_condition_length=end_condition_length,
                                    num_games=num_games,
-                                   x_player=x_player,
-                                   o_player=o_player,
+                                   x_player=x,
+                                   o_player=o,
                                    bot_move_draw_delay=bot_move_draw_delay)
         self.display = display
         self.analytics=analytics

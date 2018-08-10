@@ -22,7 +22,7 @@ parser.add_argument("--score", metavar="s", type=int, default=3, help="How many 
 parser.add_argument("--display", metavar="dt", type=str, default="text", help="UI type (text/gui).")
 parser.add_argument("--bot_x", metavar="bx", type=str, default=None, help="Assign bot player to 'X' (None/random).")
 parser.add_argument("--bot_o", metavar="bo", type=str, default=None, help="Assign bot player to 'O' (None/random).")
-parser.add_argument("--bot_delay", metavar="s", type=float, default=0.5, help="Bot thinking time before move.")
+parser.add_argument("--bot_delay", metavar="s", type=float, default=0.2, help="Bot thinking time before move.")
 parser.add_argument("--num_games", metavar="n", type=int, default=1, help="Number of games to play.")
 parser.add_argument("--analytics",
                     action='store_true',
