@@ -36,6 +36,10 @@ class Grid:
             self.grid[coord[0], coord[1]] = mark
             self.possible_moves.discard(coord)
 
+    def remove_mark(self, coord):
+        self.grid[coord[0], coord[1]] = " "
+        self.possible_moves.add(coord)
+
     def clear_grid(self):
         self.grid = np.array([" " for x in range(0, self.dimension**2)]).reshape((self.dimension, self.dimension))
         self.possible_moves = set(map(lambda x: (x // self.dimension, x % self.dimension), range(0, self.dimension**2)))
@@ -224,6 +228,24 @@ class GameState:
                 self.turn = "O"
 
         return current_turn, next_coord, move_won, winning_streak
+
+    def backtrack_move(self, coord):
+        self.grid.remove_mark(coord)
+        self.turn_count -= 1
+        if self.game_running:
+            if self.turn == "O":
+                self.turn = "X"
+            else:
+                self.turn = "O"
+        else:
+            self.game_running = True
+            if self.winner is not None:
+                self.winner = None
+                if self.winner == "X":
+                    self.x_won -= 1
+                else:
+                    self.o_won -= 1
+            self.game_counter -= 1
 
 
 """

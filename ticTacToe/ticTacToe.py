@@ -21,8 +21,10 @@ parser = argparse.ArgumentParser(description='Runs Tic Tac Toe')
 parser.add_argument("-d", "--dim", metavar="N", type=int, default=3, help="Create a N by N game board.")
 parser.add_argument("--score", metavar="s", type=int, default=3, help="How many marks straight are needed for win.")
 parser.add_argument("--display", metavar="dt", type=str, default="text", help="UI type (text/gui).")
-parser.add_argument("--bot_x", metavar="bx", type=str, default=None, help="Assign bot player to 'X' (None/random).")
-parser.add_argument("--bot_o", metavar="bo", type=str, default=None, help="Assign bot player to 'O' (None/random).")
+parser.add_argument("--bot_x", metavar="bx", type=str, default=None,
+                    help="Assign bot player to 'X' (None/random/minmax).")
+parser.add_argument("--bot_o", metavar="bo", type=str, default=None,
+                    help="Assign bot player to 'O' (None/random/minmax).")
 parser.add_argument("--bot_delay", metavar="s", type=float, default=0.2, help="Bot thinking time before move.")
 parser.add_argument("--num_games", metavar="n", type=int, default=1, help="Number of games to play.")
 parser.add_argument("--analytics",
@@ -38,6 +40,14 @@ bot_options = {None: gl.HumanPlayer(),
 
 x_player = bot_options[args.bot_x]
 o_player = bot_options[args.bot_o]
+
+if args.dim < 3:
+    raise ValueError("Board size must be > 2")
+elif args.dim == 3 and args.score != 3:
+    raise ValueError("For 3x3 game score needs to be 3")
+elif args.dim > 3 and (args.bot_x == "minmax" or args.bot_o == "minmax"):
+    raise NotImplementedError("Minmax bot has not been implemented for board dimension larger than 3.")
+
 
 ticTacToe = gl.Game(
     dimension=args.dim,
