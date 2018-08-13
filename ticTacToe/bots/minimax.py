@@ -1,5 +1,5 @@
 """"
-Implements min-max search with alpha-beta pruning.
+Implements minimax search with alpha-beta pruning.
 This only works for 3x3 game board as of now.
 
 For this to work on bigger board would likely need:
@@ -14,7 +14,7 @@ catch most obvious winning/losing scenarios.
 import gameLogic as gl
 import numpy as np
 
-MAX_REWARD = 1
+MAX_REWARD = 100
 
 
 class AlphaBetaBot(gl.Player):
@@ -32,7 +32,10 @@ class AlphaBetaBot(gl.Player):
                     return alpha_beta(game_state, 5, False, simple_heuristic)
             else:
                 # For bigger game use smaller depth and more complex heuristic.
-                raise NotImplementedError("Only supported size for min-max bot is dim=3.")
+                if game_state.turn == "X":
+                    return alpha_beta(game_state, 0, True, heuristic_with_features)
+                else:
+                    return alpha_beta(game_state, 0, False, heuristic_with_features)
         else:
             raise IndexError("Bot trying to pick move from empty set of free possible moves.")
 
@@ -41,12 +44,68 @@ class AlphaBetaBot(gl.Player):
 
 # This is only for small 3x3 tic-tac-toe.
 def simple_heuristic(game_state):
-        if game_state.winner == "X":
-            return MAX_REWARD
-        elif game_state.winner == "O":
-            return -MAX_REWARD
+    if game_state.winner == "X":
+        return MAX_REWARD
+    elif game_state.winner == "O":
+        return -MAX_REWARD
+    else:
+        return 0
+
+
+def winning_features(game_state):
+    grid = game_state.grid
+    score = game_state.end_condition_length
+    x_win = False
+    o_win = False
+    x_near_win = 0
+    o_near_win = 0
+    x_improving = 0
+    o_improving = 0
+    for move in grid.possible_moves:
+        if grid.test_coordinate_for_win(move, "X", score, look_ahead=True)[0]:
+            x_win = True
+        if grid.test_coordinate_for_win(move, "O", score, look_ahead=True)[0]:
+            o_win = True
+        if (x_win and game_state.turn == "X") or \
+                (o_win and game_state.turn == "O"):
+            break
         else:
-            return 0
+            x_near_win += 1 if grid.test_coordinate_for_win(move, "X", score - 1, look_ahead=True)[0] else 0
+            o_near_win += 1 if grid.test_coordinate_for_win(move, "O", score - 1, look_ahead=True)[0] else 0
+            x_improving += 1 if grid.test_coordinate_for_win(move, "X", score - 2, look_ahead=True)[0] else 0
+            o_improving += 1 if grid.test_coordinate_for_win(move, "O", score - 2, look_ahead=True)[0] else 0
+
+    # Player will win next move or opponent threatens to win.
+    if game_state.turn == "X" and x_win is True:
+        return MAX_REWARD * 0.9
+    elif game_state.turn == "X" and o_win is True:
+        return -MAX_REWARD * 0.8
+    elif game_state.turn == "O" and o_win is True:
+        return -MAX_REWARD * 0.9
+    elif game_state.turn == "O" and x_win is True:
+        return MAX_REWARD * 0.8
+    else:
+        # Just counting how many "close to winning" positions there are on the board when next move is played.
+        x_score = min(max(x_near_win * MAX_REWARD * 0.1, x_improving * MAX_REWARD * 0.001), MAX_REWARD * 0.15)
+        o_score = min(max(o_near_win * MAX_REWARD * 0.1, o_improving * MAX_REWARD * 0.001), MAX_REWARD * 0.15)
+        if game_state.turn == "X":
+            x_score *= 5
+        else:
+            o_score *= 5
+        print("score: " + str(x_score - o_score))
+        return x_score - o_score
+
+
+def heuristic_with_features(game_state):
+    # Terminal positions
+    if game_state.winner == "X":
+        return MAX_REWARD
+    elif game_state.winner == "O":
+        return -MAX_REWARD
+    elif not game_state.game_running:
+        return 0
+    else:
+        return winning_features(game_state)
 
 
 """
@@ -67,89 +126,59 @@ def prune_possible_moves(game_state, stride=2):
                 if game_state.grid.grid[x, y] in ["X", "O"]}
 
     taken = taken_coordinates()
+    pruned_moves = set()
     # 1st move
     if len(taken) == 0:
-        return game_state.grid.possible_moves.pop()
+        pruned_moves.add(game_state.grid.possible_moves.pop())
     else:
         # 2nd move onwards
-        pruned_moves = set()
         for move in game_state.grid.possible_moves:
             for coord in taken:
                 if dist(move, coord) < stride:
                     pruned_moves.add(move)
                     break
-        return pruned_moves
-
-
-"""
-New version that backtracks.
-"""
+    return pruned_moves
 
 
 # Main alpha-beta routine.
-def alpha_beta(node, depth, maximizing_player, h, debug=False):
+def alpha_beta(node, depth, maximizing_player, h):
     # We actually run alpha-beta on the children of the root node to find optimal action.
     best_move = None
-    if maximizing_player:
-        best = -999
-    else:
-        best = 999
+    best = 999
     for move in prune_possible_moves(node):
-        """
-        used to do (which though is too expensive for bigger board)...
-        child = deepcopy(node)
-        child.play_turn(move)
-        __alpha_beta_iter(child, depth, -999, 999, not maximizing_player, h)
-        now changed to backtracking on just one instance of the game.
-        """
         node.play_turn(move)
         # Returns the final value of the child node.
         value = __alpha_beta_iter(node, depth, -999, 999, not maximizing_player, h)
+        # print("\n\n")
+        # print("move: " + str(move) + " value: " + str(value))
         node.backtrack_move(move)
-        if debug:
-            print("move: " + str(move) + " with value: " + str(value))
-            print("\n")
         # Update best found value, move tuple.
-        if maximizing_player and value >= best:
+        if maximizing_player and value >= -best:
             best = value
             best_move = move
-            # shortcut if best possible path found
-            if value == MAX_REWARD:
-                break
         elif not maximizing_player and value <= best:
             best = value
             best_move = move
-            # shortcut if best possible path found
-            if value == -MAX_REWARD:
-                break
     return best_move
 
 
 # One iteration of alpha-beta algorithm.
 def __alpha_beta_iter(node, depth, alpha, beta, maximizing_player, h):
-    initial_value = 999
+    value = 999 if not maximizing_player else -999
     if depth == 0 or not node.game_running:
         return h(node)
 
-    if maximizing_player:
-        value = -initial_value
-        # iterate over possible moves
-        for move in prune_possible_moves(node):
-            node.play_turn(move)
+    for move in prune_possible_moves(node):
+        node.play_turn(move)
+        if maximizing_player:
             value = max(value, __alpha_beta_iter(node, depth-1, alpha, beta, False, h))
-            node.backtrack_move(move)
             alpha = max(alpha, value)
-            if alpha >= beta:
-                break
-        return value
-    else:
-        value = initial_value
-        for move in prune_possible_moves(node):
-            node.play_turn(move)
+        else:
             value = min(value, __alpha_beta_iter(node, depth-1, alpha, beta, True, h))
-            node.backtrack_move(move)
             beta = min(beta, value)
-            if alpha >= beta:
-                break
-        return value
+        node.backtrack_move(move)
+        if alpha >= beta:
+            break
+    return value
+
 

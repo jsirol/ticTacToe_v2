@@ -56,7 +56,7 @@ class Grid:
                     s += "{:1s}\n".format(self.grid[i, j])
         return s
 
-    def test_coordinate_for_win(self, coord, test_mark, end_condition_length):
+    def test_coordinate_for_win(self, coord, test_mark, end_condition_length, look_ahead=False):
 
         row = coord[0]
         col = coord[1]
@@ -69,7 +69,7 @@ class Grid:
         # horizontal
         for c in range(col - end_condition_length + 1, col + end_condition_length):
             if self.is_valid_coord((row, c)):
-                if self.get_mark((row, c)) == test_mark:
+                if self.get_mark((row, c)) == test_mark or (look_ahead and (row, c) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -81,7 +81,7 @@ class Grid:
         # vertical
         for r in range(row - end_condition_length + 1, row + end_condition_length):
             if self.is_valid_coord((r, col)):
-                if self.get_mark((r, col)) == test_mark:
+                if self.get_mark((r, col)) == test_mark or (look_ahead and (r, col) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -95,7 +95,7 @@ class Grid:
         c = range(col - end_condition_length + 1, col + end_condition_length)
         for ii in range(0, len(r)):
             if self.is_valid_coord((r[ii], c[ii])):
-                if self.get_mark((r[ii], c[ii])) == test_mark:
+                if self.get_mark((r[ii], c[ii])) == test_mark or (look_ahead and (r[ii], c[ii]) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -109,7 +109,7 @@ class Grid:
         r = range(row - end_condition_length + 1, row + end_condition_length)
         for ii in range(0, len(c)):
             if self.is_valid_coord((r[ii], c[ii])):
-                if self.get_mark((r[ii], c[ii])) == test_mark:
+                if self.get_mark((r[ii], c[ii])) == test_mark or (look_ahead and (r[ii], c[ii]) == coord):
                     counter += 1
                 else:
                     counter = 0
