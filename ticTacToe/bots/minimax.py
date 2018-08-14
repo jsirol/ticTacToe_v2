@@ -1,14 +1,11 @@
 """"
-Implements minimax search with alpha-beta pruning.
-This only works for 3x3 game board as of now.
+Implements minimax search with alpha-beta pruning using a handcrafted (not very good) heuristic for board
+evaluation.
 
-For this to work on bigger board would likely need:
-a) Good heuristic to evaluate game state.
-b) Clever pruning of candidate moves.
-c) Some sort of ordering of the candidate moves in order to prune the search tree as much as possible.
-TL;DR sounds like lot of feature engineering and work to figure out what are good metrics to rate a position, unless
-there is sufficient computing power available to increase search depth to some reasonable number (e.g. 5?) which would
-catch most obvious winning/losing scenarios.
+For this to work (better) on bigger board would need:
+a) Better heuristic to evaluate game state.
+b) Perhaps a more clever way of pruning candidate moves, so can recurse deeper in game tree.
+c) Ordering of the candidate moves in order to prune the search tree as much as possible.
 """
 
 import gameLogic as gl
