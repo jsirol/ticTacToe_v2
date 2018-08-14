@@ -239,12 +239,12 @@ class GameState:
                 self.turn = "O"
         else:
             self.game_running = True
-            if self.winner is not None:
+            if self.winner == "X":
+                self.x_won -= 1
                 self.winner = None
-                if self.winner == "X":
-                    self.x_won -= 1
-                else:
-                    self.o_won -= 1
+            elif self.winner == "O":
+                self.o_won -= 1
+                self.winner = None
             self.game_counter -= 1
 
 
