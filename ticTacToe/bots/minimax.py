@@ -52,35 +52,38 @@ def simple_heuristic(game_state):
 def winning_features(game_state):
     grid = game_state.grid
     score = game_state.end_condition_length
-    x_win = False
-    o_win = False
+    x_win = 0
+    o_win = 0
     x_near_win = 0
     o_near_win = 0
     x_improving = 0
     o_improving = 0
     for move in prune_possible_moves(game_state, stride=3):
-        if grid.test_coordinate_for_win(move, "X", score, look_ahead=True)[0]:
-            x_win = True
-        if grid.test_coordinate_for_win(move, "O", score, look_ahead=True)[0]:
-            o_win = True
-        if (x_win and game_state.turn == "X") or \
-                (o_win and game_state.turn == "O"):
-            break
-        else:
-            x_near_win += 1 if grid.test_coordinate_for_win(move, "X", score - 1, look_ahead=True)[0] else 0
-            o_near_win += 1 if grid.test_coordinate_for_win(move, "O", score - 1, look_ahead=True)[0] else 0
-            x_improving += 1 if grid.test_coordinate_for_win(move, "X", score - 2, look_ahead=True)[0] else 0
-            o_improving += 1 if grid.test_coordinate_for_win(move, "O", score - 2, look_ahead=True)[0] else 0
+        x_win += 1 if grid.test_coordinate_for_win(move, "X", score, look_ahead=True)[0] else 0
+        o_win += 1 if grid.test_coordinate_for_win(move, "O", score, look_ahead=True)[0] else 0
+        x_near_win += 1 if grid.test_coordinate_for_win(move, "X", score - 1, look_ahead=True)[0] else 0
+        o_near_win += 1 if grid.test_coordinate_for_win(move, "O", score - 1, look_ahead=True)[0] else 0
+        x_improving += 1 if grid.test_coordinate_for_win(move, "X", score - 2, look_ahead=True)[0] else 0
+        o_improving += 1 if grid.test_coordinate_for_win(move, "O", score - 2, look_ahead=True)[0] else 0
+
+    if x_win > 0 and game_state.turn == "X":
+        return MAX_REWARD * 0.9 + (0.01 if x_win > 1 else 0)
+    elif o_win > 0 and game_state.turn == "X":
+        return -(MAX_REWARD * 0.8 + (0.01 if o_win > 1 else 0))
+    elif o_win > 0 and game_state.turn == "O":
+        return -(MAX_REWARD * 0.9 + (0.01 if o_win > 1 else 0))
+    elif x_win > 0 and game_state.turn == "O":
+        return MAX_REWARD * 0.8 + (0.01 if x_win > 1 else 0)
 
     # Player will win next move or opponent threatens to win.
-    if game_state.turn == "X" and x_win is True:
-        return MAX_REWARD * 0.9
-    elif game_state.turn == "X" and o_win is True:
-        return -MAX_REWARD * 0.8
-    elif game_state.turn == "O" and o_win is True:
-        return -MAX_REWARD * 0.9
-    elif game_state.turn == "O" and x_win is True:
-        return MAX_REWARD * 0.8
+    # if game_state.turn == "X" and x_win is True:
+    #     return MAX_REWARD * 0.9
+    # elif game_state.turn == "X" and o_win is True:
+    #     return -MAX_REWARD * 0.8
+    # elif game_state.turn == "O" and o_win is True:
+    #     return -MAX_REWARD * 0.9
+    # elif game_state.turn == "O" and x_win is True:
+    #     return MAX_REWARD * 0.8
     # Player can win next move if it was his turn.
     elif x_near_win > 0 or o_near_win > 0:
         x_score = x_near_win * MAX_REWARD * 0.025

@@ -13,7 +13,7 @@ class GraphicsDisplay(Frame):
         self.spacing_x = canvas_size[0] / game_state.grid.dimension
         self.spacing_y = canvas_size[1] / game_state.grid.dimension
         self.canvas_size = canvas_size
-        self.last_coordinate = None
+        self.highlighted_square = None
         Frame.__init__(self, root)
         self.__init_ui()
 
@@ -75,7 +75,7 @@ class GraphicsDisplay(Frame):
                 fill="",
                 width=2)
 
-        self.canvas.create_rectangle(
+        self.highlighted_square = self.canvas.create_rectangle(
             location_on_canvas[0],
             location_on_canvas[1],
             location_on_canvas[0] + self.spacing_x,
@@ -84,15 +84,8 @@ class GraphicsDisplay(Frame):
             width=2
         )
 
-    def __remove_highlight(self, coord):
-        location_on_canvas = self.__game_coordinate_to_canvas_coordinate(coord)
-        self.canvas.create_rectangle(
-            location_on_canvas[0],
-            location_on_canvas[1],
-            location_on_canvas[0] + self.spacing_x,
-            location_on_canvas[1] + self.spacing_y,
-            width=1
-        )
+    def __remove_highlight(self):
+        self.canvas.delete(self.highlighted_square)
 
     def __draw_streak(self, start_coord, end_coord):
         start = self.__game_coordinate_to_canvas_coordinate(start_coord, center=True)
@@ -139,7 +132,7 @@ class GraphicsDisplay(Frame):
             turn, move, move_won, winning_streak = self.game_state.play_turn(None)
             sleep(self.game_state.bot_move_draw_delay)
             if self.last_coordinate is not None:
-                self.__remove_highlight(self.last_coordinate)
+                self.__remove_highlight()
             self.__draw_mark(turn, move)
             self.last_coordinate = move
             self.update()
@@ -151,8 +144,8 @@ class GraphicsDisplay(Frame):
             coord = int(np.floor(event.y / self.spacing_y)), int(np.floor(event.x / self.spacing_x))
             if gs.grid.is_valid_coord(coord) and gs.grid.is_free(coord):
                 turn, move, move_won, winning_streak = gs.play_turn(coord)
-                if self.last_coordinate is not None:
-                    self.__remove_highlight(self.last_coordinate)
+                if self.highlighted_square is not None:
+                    self.__remove_highlight()
                 self.__draw_mark(turn, move)
                 self.last_coordinate = move
                 self.update()  # needed to draw before bot starts thinking
