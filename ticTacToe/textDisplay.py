@@ -27,7 +27,11 @@ class TextDisplay:
     def __print_analytics(self):
         if self.analytics:
             cg = self.game_state.game_counter
-            if self.game_state.game_counter % 100 == 0:
+            if self.game_state.NUM_GAMES < 500:
+                modulo = 10
+            else:
+                modulo = 100
+            if self.game_state.game_counter % modulo == 0:
                 print("{:6d}/{:6d} games played, X won {:1.2f}%, O won {:1.2f}%, draw {:1.2f}%".format(
                     cg,
                     self.game_state.NUM_GAMES,

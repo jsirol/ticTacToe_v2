@@ -4,6 +4,7 @@ Include game logic here.
 
 import numpy as np
 import random as rand
+
 """
 This encodes the play area, aka grid.
 Assume all coordinates are given as (row, col) tuples.
@@ -35,6 +36,10 @@ class Grid:
             self.grid[coord[0], coord[1]] = mark
             self.possible_moves.discard(coord)
 
+    def remove_mark(self, coord):
+        self.grid[coord[0], coord[1]] = " "
+        self.possible_moves.add(coord)
+
     def clear_grid(self):
         self.grid = np.array([" " for x in range(0, self.dimension**2)]).reshape((self.dimension, self.dimension))
         self.possible_moves = set(map(lambda x: (x // self.dimension, x % self.dimension), range(0, self.dimension**2)))
@@ -51,7 +56,7 @@ class Grid:
                     s += "{:1s}\n".format(self.grid[i, j])
         return s
 
-    def test_coordinate_for_win(self, coord, test_mark, end_condition_length):
+    def test_coordinate_for_win(self, coord, test_mark, end_condition_length, look_ahead=False):
 
         row = coord[0]
         col = coord[1]
@@ -64,7 +69,7 @@ class Grid:
         # horizontal
         for c in range(col - end_condition_length + 1, col + end_condition_length):
             if self.is_valid_coord((row, c)):
-                if self.get_mark((row, c)) == test_mark:
+                if self.get_mark((row, c)) == test_mark or (look_ahead and (row, c) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -76,7 +81,7 @@ class Grid:
         # vertical
         for r in range(row - end_condition_length + 1, row + end_condition_length):
             if self.is_valid_coord((r, col)):
-                if self.get_mark((r, col)) == test_mark:
+                if self.get_mark((r, col)) == test_mark or (look_ahead and (r, col) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -90,7 +95,7 @@ class Grid:
         c = range(col - end_condition_length + 1, col + end_condition_length)
         for ii in range(0, len(r)):
             if self.is_valid_coord((r[ii], c[ii])):
-                if self.get_mark((r[ii], c[ii])) == test_mark:
+                if self.get_mark((r[ii], c[ii])) == test_mark or (look_ahead and (r[ii], c[ii]) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -104,7 +109,7 @@ class Grid:
         r = range(row - end_condition_length + 1, row + end_condition_length)
         for ii in range(0, len(c)):
             if self.is_valid_coord((r[ii], c[ii])):
-                if self.get_mark((r[ii], c[ii])) == test_mark:
+                if self.get_mark((r[ii], c[ii])) == test_mark or (look_ahead and (r[ii], c[ii]) == coord):
                     counter += 1
                 else:
                     counter = 0
@@ -216,12 +221,31 @@ class GameState:
                     self.o_won += 1
 
         current_turn = self.turn
-        if self.turn == "O":
-            self.turn = "X"
-        else:
-            self.turn = "O"
+        if self.game_running:
+            if self.turn == "O":
+                self.turn = "X"
+            else:
+                self.turn = "O"
 
         return current_turn, next_coord, move_won, winning_streak
+
+    def backtrack_move(self, coord):
+        self.grid.remove_mark(coord)
+        self.turn_count -= 1
+        if self.game_running:
+            if self.turn == "O":
+                self.turn = "X"
+            else:
+                self.turn = "O"
+        else:
+            self.game_running = True
+            if self.winner == "X":
+                self.x_won -= 1
+                self.winner = None
+            elif self.winner == "O":
+                self.o_won -= 1
+                self.winner = None
+            self.game_counter -= 1
 
 
 """
