@@ -187,6 +187,9 @@ class GameState:
         # for convenience, if two bots playing vs each other (especially relevant in gui mode)
         self.bot_move_draw_delay = bot_move_draw_delay
 
+    def __hash__(self):
+        return hash(self.grid.grid_to_string())
+
     def initialize_game_state(self, turn, x_player, o_player, game_running, turn_count):
         self.turn = turn
         self.x = x_player
