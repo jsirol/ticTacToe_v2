@@ -22,7 +22,7 @@ class MCTSBot(gl.Player):
     def get_move(self, game_state):
         return self.mcts(game_state)
 
-    def mcts(self, root, computation_time_ms=2000):
+    def mcts(self, root, computation_time_ms=1000):
         self.turn = root.turn
         self.root = hash(root)
         self.states = dict()
@@ -45,7 +45,7 @@ class MCTSBot(gl.Player):
             node.backtrack_move(move)
         return expanded == len(node.grid.possible_moves)
 
-    def best_ucb1(self, node, c=np.sqrt(2)):
+    def best_uct(self, node, c=np.sqrt(2)):
         best = -999999999
         best_node = deepcopy(node)
         best_move = None
@@ -54,7 +54,7 @@ class MCTSBot(gl.Player):
             candidate.play_turn(move)
             if hash(candidate) in self.states:
                 wins, losses, visits = self.states.get(hash(candidate))
-                uct = wins / visits - losses / visits + c * np.sqrt(np.log(self.num_sims) / visits)
+                uct = (wins - losses) / visits + c * np.sqrt(np.log(self.num_sims) / visits)
                 if uct > best:
                     best = uct
                     best_node = candidate
@@ -65,12 +65,8 @@ class MCTSBot(gl.Player):
     def traverse(self, node):
         while self.fully_expanded(node) and len(node.grid.possible_moves) > 0:
             # pick from children
-            node, move = self.best_ucb1(node)
+            node, move = self.best_uct(node)
             self.explored_sequence.append(move)
-        if len(node.grid.possible_moves) > 0 and node.game_running:
-            move = rand.sample(node.grid.possible_moves, 1)[0]
-            self.explored_sequence.append(move)
-            node.play_turn(move)
         if hash(node) not in self.states:
             self.states[hash(node)] = [0, 0, 0]
         return node
@@ -84,9 +80,6 @@ class MCTSBot(gl.Player):
             # adding a node to visited states list
             if hash(node) not in self.states:
                 self.states[hash(node)] = [0, 0, 0]
-
-        #print(node.grid.grid_to_string())
-
         return node.winner
 
     # default rollout policy (simulation policy)
@@ -123,11 +116,11 @@ class MCTSBot(gl.Player):
         for move in node.grid.possible_moves:
             node.play_turn(move)
             key = hash(node)
-            print(node.grid.grid_to_string())
+            #print(node.grid.grid_to_string())
             visits = self.states.get(key)[2]
             losses = self.states.get(key)[1]
             wins = self.states.get(key)[0]
-            print("key: " + str(key) + " wins/losses/simulations: " + str(wins) + "/" + str(losses) + "/" + str(visits))
+            #print("key: " + str(key) + " wins/losses/simulations: " + str(wins) + "/" + str(losses) + "/" + str(visits))
             current = max(best, self.states.get(key)[2])
             if current > best:
                 best = current
