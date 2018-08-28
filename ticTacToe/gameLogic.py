@@ -189,7 +189,7 @@ class GameState:
         self.bot_move_draw_delay = bot_move_draw_delay
 
     def __hash__(self):
-        return hash(str(self.moves) if len(self.moves) > 0 else "")
+        return hash(self.grid.grid_to_string())
 
     def initialize_game_state(self, turn, x_player, o_player, game_running, turn_count):
         self.turn = turn

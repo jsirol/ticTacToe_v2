@@ -133,8 +133,8 @@ class MCTSBot(gl.Player):
             if key in self.states:
                 wins, losses, visits = self.states.get(key)
                 current = max(best, self.states.get(key)[2])
-                print(node.grid.grid_to_string())
-                print("win/loss/draw=visits:  {}/{}/{}={}".format(wins, losses, visits - wins - losses, visits))
+                #print(node.grid.grid_to_string())
+                #print("win/loss/draw=visits:  {}/{}/{}={}".format(wins, losses, visits - wins - losses, visits))
                 if current > best:
                     best = current
                     best_move = move
