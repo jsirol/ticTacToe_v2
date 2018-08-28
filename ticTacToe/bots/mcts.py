@@ -20,17 +20,29 @@ class MCTSBot(gl.Player):
         self.explored_sequence = []  # moves for the rollout
 
     def get_move(self, game_state):
+        self.num_sims = 0
+        self.turn = game_state.turn
+        self.root = hash(game_state)
+        self.states = dict()
+        self.states[hash(game_state)] = [0, 0, 0]
+        self.explored_sequence = []  # moves for the rollout
         return self.mcts(game_state)
 
-    def mcts(self, root, computation_time_ms=1000):
-        self.turn = root.turn
-        self.root = hash(root)
-        self.states = dict()
-        self.states[hash(root)] = [0, 0, 0]
+    def computation_resources(self, num_sims=None, computation_time_ms=None, start_time=None):
+        if num_sims is None and computation_time_ms is None:
+            raise ValueError("num_sims and computation_time_ms cannot both be None.")
+        if num_sims is None and start_time is None:
+            raise ValueError("start_time not set when using time limit for computation.")
+        if num_sims is not None:
+            return self.num_sims < num_sims
+        else:
+            return int(round(time.time() * 1000)) - start_time < computation_time_ms
+
+    def mcts(self, root, computation_time_ms=2000):
         start_time = int(round(time.time() * 1000))
-        while int(round(time.time() * 1000)) - start_time < computation_time_ms:
-            leaf = self.traverse(root)  # leaf = unvisited node
-            simulation_result = self.rollout(leaf)
+        while self.computation_resources(num_sims=200, computation_time_ms=computation_time_ms, start_time=start_time):
+            leaf = self.traverse(deepcopy(root))  # leaf = unvisited node
+            simulation_result = self.rollout(deepcopy(leaf))
             self.backpropagate(leaf, simulation_result)
             self.num_sims += 1
             self.explored_sequence = []
@@ -49,12 +61,13 @@ class MCTSBot(gl.Player):
         best = -999999999
         best_node = deepcopy(node)
         best_move = None
+        parent_visits = self.states.get(hash(node))[2]
         for move in node.grid.possible_moves:
             candidate = deepcopy(node)
             candidate.play_turn(move)
             if hash(candidate) in self.states:
                 wins, losses, visits = self.states.get(hash(candidate))
-                uct = (wins - losses) / visits + c * np.sqrt(np.log(self.num_sims) / visits)
+                uct = (wins - losses) / visits + c * np.sqrt(np.log(parent_visits) / visits)
                 if uct > best:
                     best = uct
                     best_node = candidate
@@ -63,10 +76,26 @@ class MCTSBot(gl.Player):
 
     # traverse to leaf node
     def traverse(self, node):
-        while self.fully_expanded(node) and len(node.grid.possible_moves) > 0:
+        while node.game_running and self.fully_expanded(node) and len(node.grid.possible_moves) > 0:
             # pick from children
             node, move = self.best_uct(node)
             self.explored_sequence.append(move)
+        if node.game_running:
+            # pick unvisited child randomly
+            moves_list = deepcopy(node.grid.possible_moves)
+            candidate = rand.sample(moves_list, 1)[0]  # in case all nodes are already visited
+            while True:
+                move = rand.sample(moves_list, 1)[0]
+                node.play_turn(move)
+                if hash(node) in self.states:
+                    node.backtrack_move(move)
+                    moves_list.remove(move)
+                if len(moves_list) == 0:
+                    self.explored_sequence.append(candidate)
+                    break
+                else:
+                    self.explored_sequence.append(move)
+                    break
         if hash(node) not in self.states:
             self.states[hash(node)] = [0, 0, 0]
         return node
@@ -74,36 +103,21 @@ class MCTSBot(gl.Player):
     # rollout function (simulate playout)
     def rollout(self, node):
         while node.game_running:  # non terminal
-            move = self.rollout_policy(node)
-            self.explored_sequence.append(move)
+            move = rand.sample(node.grid.possible_moves, 1)[0]
             node.play_turn(move)
-            # adding a node to visited states list
-            if hash(node) not in self.states:
-                self.states[hash(node)] = [0, 0, 0]
         return node.winner
-
-    # default rollout policy (simulation policy)
-    def rollout_policy(self, node):
-        # random rollout policy
-        return rand.sample(node.grid.possible_moves, 1)[0]
 
     # update statistics of node
     def update_node_stats(self, node, winner):
         key = hash(node)
-        # if not node.game_running:
-        #     print("winner: " + str(winner) + " add to losses: " + str((1 if winner is not None and self.turn != winner else 0)))
-        self.states.get(key)[0] += (1 if self.turn == winner else 0)
-        self.states.get(key)[1] += (1 if winner is not None and self.turn != winner else 0)
+        self.states.get(key)[0] += 1 if self.turn == winner else 0
+        self.states.get(key)[1] += 1 if winner is not None and self.turn != winner else 0
         self.states.get(key)[2] += 1
-
-    # test for root
-    def is_root(self, node):
-        return hash(node) == self.root
 
     # backpropagate playout result
     def backpropagate(self, node, result):
         self.update_node_stats(node, result)
-        if self.is_root(node):
+        if hash(node) == self.root:
             return
         last_move = self.explored_sequence.pop()
         node.backtrack_move(last_move)
@@ -116,14 +130,13 @@ class MCTSBot(gl.Player):
         for move in node.grid.possible_moves:
             node.play_turn(move)
             key = hash(node)
-            #print(node.grid.grid_to_string())
-            visits = self.states.get(key)[2]
-            losses = self.states.get(key)[1]
-            wins = self.states.get(key)[0]
-            #print("key: " + str(key) + " wins/losses/simulations: " + str(wins) + "/" + str(losses) + "/" + str(visits))
-            current = max(best, self.states.get(key)[2])
-            if current > best:
-                best = current
-                best_move = move
+            if key in self.states:
+                wins, losses, visits = self.states.get(key)
+                current = max(best, self.states.get(key)[2])
+                print(node.grid.grid_to_string())
+                print("win/loss/draw=visits:  {}/{}/{}={}".format(wins, losses, visits - wins - losses, visits))
+                if current > best:
+                    best = current
+                    best_move = move
             node.backtrack_move(move)
         return best_move
