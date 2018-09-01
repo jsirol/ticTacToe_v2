@@ -7,6 +7,7 @@ Start the game here.
 import argparse
 import gameLogic as gl
 from bots.minimax import AlphaBetaBot
+from bots.mcts import MCTSBot
 
 """
 Parse command line arguments.
@@ -35,7 +36,8 @@ args = parser.parse_args()
 
 bot_options = {None: gl.HumanPlayer(),
                "random": gl.RandomBot(),
-               "minimax": AlphaBetaBot()
+               "minimax": AlphaBetaBot(),
+               "mcts": MCTSBot()
                }
 
 x_player = bot_options[args.bot_x]

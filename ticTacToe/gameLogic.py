@@ -184,8 +184,12 @@ class GameState:
         self.x_won = 0
         self.o_won = 0
         self.winner = None
+        self.moves = []
         # for convenience, if two bots playing vs each other (especially relevant in gui mode)
         self.bot_move_draw_delay = bot_move_draw_delay
+
+    def __hash__(self):
+        return hash(self.grid.grid_to_string())
 
     def initialize_game_state(self, turn, x_player, o_player, game_running, turn_count):
         self.turn = turn
@@ -195,6 +199,7 @@ class GameState:
         self.turn_count = turn_count
         self.winner = None
         self.grid.clear_grid()
+        self.moves = []
 
     def play_turn(self, next_coord):
         if next_coord is None:
@@ -207,6 +212,7 @@ class GameState:
 
         # do the move and update game state
         self.grid.place_mark(next_coord, self.turn)
+        self.moves.append(next_coord)
         move_won, winning_streak = self.grid.test_coordinate_for_win(next_coord, self.turn, self.end_condition_length)
         self.turn_count += 1
 
@@ -231,6 +237,7 @@ class GameState:
 
     def backtrack_move(self, coord):
         self.grid.remove_mark(coord)
+        self.moves.pop()
         self.turn_count -= 1
         if self.game_running:
             if self.turn == "O":
