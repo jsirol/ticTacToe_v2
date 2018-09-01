@@ -17,37 +17,28 @@ class MCTSBot(gl.Player):
         self.num_sims = 0
         self.root = None
         self.turn = None
-        self.explored_sequence = []  # moves for the rollout
 
-    def get_move(self, game_state):
+    def reset_state(self, game_state):
         self.num_sims = 0
         self.turn = game_state.turn
         self.root = hash(game_state)
         self.states = dict()
         self.states[hash(game_state)] = [0, 0, 0]
-        self.explored_sequence = []  # moves for the rollout
+
+    def get_move(self, game_state):
+        self.reset_state(game_state)
         return self.mcts(game_state)
 
-    def computation_resources(self, num_sims=None, computation_time_ms=None, start_time=None):
-        if num_sims is None and computation_time_ms is None:
-            raise ValueError("num_sims and computation_time_ms cannot both be None.")
-        if num_sims is None and start_time is None:
-            raise ValueError("start_time not set when using time limit for computation.")
-        if num_sims is not None:
-            return self.num_sims < num_sims
-        else:
-            return int(round(time.time() * 1000)) - start_time < computation_time_ms
-
-    def mcts(self, root, computation_time_ms=2000):
+    def mcts(self, root, computation_time_ms=2000, max_sims=1000):
         start_time = int(round(time.time() * 1000))
-        while self.computation_resources(num_sims=200, computation_time_ms=computation_time_ms, start_time=start_time):
+        while int(round(time.time() * 1000)) - start_time < computation_time_ms and self.num_sims < max_sims:
             leaf = self.traverse(deepcopy(root))  # leaf = unvisited node
             simulation_result = self.rollout(deepcopy(leaf))
             self.backpropagate(leaf, simulation_result)
             self.num_sims += 1
-            self.explored_sequence = []
         return self.best_child(root)
 
+    # check if node is fully expanded
     def fully_expanded(self, node):
         expanded = 0
         for move in node.grid.possible_moves:
@@ -57,6 +48,7 @@ class MCTSBot(gl.Player):
             node.backtrack_move(move)
         return expanded == len(node.grid.possible_moves)
 
+    # calculate utc scores
     def best_uct(self, node, c=np.sqrt(2)):
         best = -999999999
         best_node = deepcopy(node)
@@ -79,31 +71,35 @@ class MCTSBot(gl.Player):
         while node.game_running and self.fully_expanded(node) and len(node.grid.possible_moves) > 0:
             # pick from children
             node, move = self.best_uct(node)
-            self.explored_sequence.append(move)
         if node.game_running:
             # pick unvisited child randomly
             moves_list = deepcopy(node.grid.possible_moves)
-            candidate = rand.sample(moves_list, 1)[0]  # in case all nodes are already visited
-            while True:
+            while len(moves_list) > 0:
                 move = rand.sample(moves_list, 1)[0]
                 node.play_turn(move)
                 if hash(node) in self.states:
                     node.backtrack_move(move)
                     moves_list.remove(move)
-                if len(moves_list) == 0:
-                    self.explored_sequence.append(candidate)
-                    break
                 else:
-                    self.explored_sequence.append(move)
                     break
         if hash(node) not in self.states:
             self.states[hash(node)] = [0, 0, 0]
         return node
 
+    @staticmethod
+    def rollout_policy(node):
+        return rand.sample(node.grid.possible_moves, 1)[0]
+
+    @staticmethod
+    def rollout_policy_minimax(node):
+        from bots.minimax import AlphaBetaBot
+        return AlphaBetaBot().get_move(node)
+
     # rollout function (simulate playout)
     def rollout(self, node):
         while node.game_running:  # non terminal
-            move = rand.sample(node.grid.possible_moves, 1)[0]
+            move = self.rollout_policy(node)
+            # move = self.rollout_policy_minimax(deepcopy(node))
             node.play_turn(move)
         return node.winner
 
@@ -119,7 +115,7 @@ class MCTSBot(gl.Player):
         self.update_node_stats(node, result)
         if hash(node) == self.root:
             return
-        last_move = self.explored_sequence.pop()
+        last_move = node.moves[len(node.moves) - 1]
         node.backtrack_move(last_move)
         self.backpropagate(node, result)
 
@@ -131,10 +127,7 @@ class MCTSBot(gl.Player):
             node.play_turn(move)
             key = hash(node)
             if key in self.states:
-                wins, losses, visits = self.states.get(key)
                 current = max(best, self.states.get(key)[2])
-                #print(node.grid.grid_to_string())
-                #print("win/loss/draw=visits:  {}/{}/{}={}".format(wins, losses, visits - wins - losses, visits))
                 if current > best:
                     best = current
                     best_move = move
